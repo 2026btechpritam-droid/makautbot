@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "makaut-me-bot"
+version = "1.0.0"
+description = "MAKAUT Mechanical Engineering Study Telegram Bot"
+authors = [""]
+
+[tool.poetry.dependencies]
+python = ">=3.11.0,<3.12"
+python-telegram-bot = "21.11.1"
+flask = "3.0.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
