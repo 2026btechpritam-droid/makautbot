@@ -77,8 +77,6 @@ ADMIN_CHAT_ID      = -1003756311234
 STORAGE_CHANNEL_ID = int(os.environ.get("STORAGE_CHANNEL_ID", "-1003810204452"))
 
 # ── Shared Links ───────────────────────────────────────────────────────────────
-TG       = "https://t.me/+z3X6dsDlONs4OWQ1"
-GATE_CH  = "https://t.me/mechanical_Gate_ese_je_notes2027"
 PYQ_2ND  = "https://drive.google.com/drive/folders/1pqOU462w0HneTlVK7b0Kq3W-0SnPT6wh"
 ORG_2ND  = "https://drive.google.com/drive/folders/10UYEM1xmZBBWWGjbvoyyiL10ooURfi8N"
 DR38     = "https://drive.google.com/drive/folders/1W46fCm1ysdJENxCazCI_ZWqsAqUxnXRy"
@@ -487,7 +485,7 @@ LECTURE_VIDEOS = {
 # 📚  BOOKS PDF  ——  Channel Storage msg_ids for reference book PDFs per subject
 # ══════════════════════════════════════════════════════════════════════════════
 BOOKS_PDF = {
-    # legacy structure, left empty; all real msg_ids go to BOOKS_PDF_CHANNEL
+    # legacy, kept for compatibility (no entries)
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -718,11 +716,9 @@ WELCOME = (
 def r(pyq, org):
     return {
         "pyq": [
-            {"title": "📢 PYQs & Practice Qs — Telegram Channel", "url": TG},
             {"title": "📂 PYQ — Google Drive", "url": pyq, "description": "Previous year question papers on Drive"},
         ],
         "books": [
-            {"title": "📢 Reference Books — Telegram Channel", "url": TG, "description": "Book PDFs shared in the channel"},
             {"title": "🚧 Direct Book PDF Links", "url": CS},
         ],
         "organizers": [
@@ -803,11 +799,9 @@ MATERIALS = {
                 "description": "Vapour compression/absorption cycles, psychrometry, cooling load, AC systems.",
                 "resources": {
                     "pyq": [
-                        {"title": "📢 PYQs & Practice Qs — Telegram Channel", "url": TG},
                         {"title": "📂 PYQ — Google Drive", "url": DR38, "description": "Previous year question papers on Drive"},
                     ],
                     "books": [
-                        {"title": "📢 Reference Books — Telegram Channel", "url": TG, "description": "Book PDFs shared in the channel"},
                         {"title": "📗 Refrigeration & Air Conditioning – CP Arora (3rd Ed.)", "url": "https://drive.google.com/file/d/1iK0E6Meo1QUQxjWToSP0XBRh_JQ-wNhd/view?usp=sharing", "description": "Google Drive Book Link"},
                         {"title": "🚧 Direct Book PDF Links", "url": CS},
                     ],
@@ -1017,12 +1011,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Want premium study materials, handwritten notes, video lectures "
             "& daily practice questions for competitive exams?\n\n"
             "👉 Join our dedicated channel:\n"
-            f"[🔗 Mechanical GATE / ESE / JE Notes 2027]({GATE_CH})\n\n"
+            f"[🔗 Mechanical GATE / ESE / JE Notes 2027](https://t.me/mechanical_Gate_ese_je_notes2027)\n\n"
             "✅ Handwritten notes\n✅ Video lectures\n"
             "✅ Daily Practice Problems\n✅ Mock tests & solutions",
             parse_mode="Markdown", disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📲 Join GATE / ESE / JE Channel", url=GATE_CH)],
+                [InlineKeyboardButton("📲 Join GATE / ESE / JE Channel", url="https://t.me/mechanical_Gate_ese_je_notes2027")],
                 [InlineKeyboardButton("🔙 Main Menu", callback_data="main")],
             ]))
 
@@ -1035,9 +1029,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📅 *Syllabus:* 2018-19\n"
             "📚 *Semesters:* 1st to 8th\n"
             f"📖 *Total Subjects (incl. all electives):* {total}\n\n"
-            f"📢 [Study Materials Channel]({TG})\n"
             f"📂 [PYQ & Organizers — Drive]({DR38})\n"
-            f"🎯 [GATE / ESE / JE Channel]({GATE_CH})",
+            f"🎯 [GATE / ESE / JE Channel](https://t.me/mechanical_Gate_ese_je_notes2027)",
             parse_mode="Markdown", disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main")]]))
 
@@ -1071,7 +1064,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not sub:
             await q.edit_message_text("❌ Subject not found."); return
 
-        # ── NOTES: send PDFs from Storage Channel or show Drive link ─────────
+        # ── NOTES: show file selection buttons ─────────────────────────────────
         if res_type == "notes":
             all_note_pdfs = (
                 [p for p in NOTES_PDF.get(sub_id, [])         if p.get("msg_id", 0) != 0] +
@@ -1080,33 +1073,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             drive_link = NOTES_DRIVE.get(sub_id)
 
             if all_note_pdfs:
-                total = len(all_note_pdfs)
+                # Build a button for each PDF
+                buttons = []
+                for pdf in all_note_pdfs:
+                    cap = pdf.get("caption", "PDF")
+                    # Keep button text under ~50 chars to avoid truncation
+                    short_cap = cap if len(cap) <= 50 else cap[:47] + "..."
+                    cb_data = f"note_file|{sem_num}|{sub_id}|{pdf['msg_id']}"
+                    buttons.append([InlineKeyboardButton(short_cap, callback_data=cb_data)])
+
+                # Add back/menu row
+                buttons.append([
+                    InlineKeyboardButton("🔙 Back to Subject", callback_data=f"sub|{sem_num}|{sub_id}"),
+                    InlineKeyboardButton("🏠 Menu", callback_data="main")
+                ])
                 await q.edit_message_text(
-                    f"📤 *Sending notes for {sub['name']}…*\n"
-                    f"_{total} PDF(s) incoming below_ 👇",
-                    parse_mode="Markdown")
-                chat_id = q.message.chat_id
-                for idx, pdf in enumerate(all_note_pdfs, 1):
-                    caption      = pdf.get("caption", f"{sub['name']} – Notes Part {idx}")
-                    caption_full = f"📄 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
-                    try:
-                        await context.bot.copy_message(
-                            chat_id=chat_id,
-                            from_chat_id=STORAGE_CHANNEL_ID,
-                            message_id=pdf["msg_id"],
-                            caption=caption_full,
-                            parse_mode="Markdown")
-                    except Exception as e:
-                        logger.error(f"Failed to copy note for {sub_id} msg_id={pdf.get('msg_id')}: {e}")
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=f"⚠️ Could not send *{caption}*.\n_Ensure the bot is Admin in the Storage Channel._",
-                            parse_mode="Markdown")
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"✅ All {total} note(s) sent for *{sub['name']}*!",
+                    f"📝 *{sub['name']}* — Notes / PDFs\n\n"
+                    f"📚 Choose a file to receive 👇",
                     parse_mode="Markdown",
-                    reply_markup=back_kb(sem_num, sub_id))
+                    reply_markup=InlineKeyboardMarkup(buttons))
 
             elif drive_link:
                 await q.edit_message_text(
@@ -1126,17 +1111,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await q.edit_message_text(
                     f"📝 *{sub['name']}* — Notes / PDFs\n\n"
                     "🚧 *Coming Soon!*\n"
-                    "_PDFs for this subject will be uploaded shortly._\n\n"
-                    f"📢 Meanwhile, check the [Telegram Channel]({TG}) for notes.",
+                    "_PDFs for this subject will be uploaded shortly._",
                     parse_mode="Markdown",
                     disable_web_page_preview=True,
                     reply_markup=back_kb(sem_num, sub_id))
 
-        # ── LECTURES: copy from Storage Channel (large videos) or show YouTube ─
+        # ── LECTURES: copy from Storage Channel or show YouTube ─────────────
         elif res_type == "lectures":
             tg_videos = LECTURE_VIDEOS.get(sub_id, [])
             yt_links  = YOUTUBE_LINKS.get(sub_id, [])
-
             tg_videos = [v for v in tg_videos if v.get("msg_id", 0) != 0]
 
             if tg_videos:
@@ -1229,7 +1212,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         text=f"✅ All {total} book(s) sent for *{sub['name']}*!",
                         parse_mode="Markdown",
                         reply_markup=back_kb(sem_num, sub_id))
-                    return   # skip the URL-only block below
+                    return
 
             if not items:
                 body = "🚧 *Coming Soon!*\n_This resource will be added shortly._"
@@ -1252,6 +1235,43 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown",
                 reply_markup=back_kb(sem_num, sub_id),
                 disable_web_page_preview=True)
+
+    # ── NOTE FILE BUTTON HANDLER ───────────────────────────────────────────
+    elif act == "note_file" and len(pts) == 4:
+        sem_num, sub_id, msg_id_str = pts[1], pts[2], pts[3]
+        try:
+            msg_id = int(msg_id_str)
+        except ValueError:
+            await q.answer("❌ Invalid file ID."); return
+
+        sub = MATERIALS.get(sem_num, {}).get("subjects", {}).get(sub_id)
+        if not sub:
+            await q.answer("❌ Subject not found."); return
+
+        await q.answer("📄 Sending file...")
+        chat_id = q.message.chat_id
+        try:
+            # We don't have the original caption stored here, but we can infer from the dictionaries.
+            # Just send with a generic caption or look it up.
+            # We'll search for the msg_id in the merged list.
+            caption = None
+            for pdf in NOTES_PDF.get(sub_id, []) + NOTES_PDF_CHANNEL.get(sub_id, []):
+                if pdf.get("msg_id") == msg_id:
+                    caption = pdf.get("caption", "Notes PDF")
+                    break
+            caption_full = f"📄 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
+            await context.bot.copy_message(
+                chat_id=chat_id,
+                from_chat_id=STORAGE_CHANNEL_ID,
+                message_id=msg_id,
+                caption=caption_full,
+                parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"Failed to copy note file msg_id={msg_id}: {e}")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ Could not send that file. Ensure the bot is Admin in the Storage Channel.",
+                parse_mode="Markdown")
 
     else:
         await q.edit_message_text("❓ Unknown action. Use /start.",
