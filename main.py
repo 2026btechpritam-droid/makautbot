@@ -6,17 +6,28 @@ python-telegram-bot v21 | @GURU_HOSTING_TGBOT compatible
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ADMIN GUIDE — HOW TO ADD CONTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📄 ADD PDF NOTES  →  NOTES_PDF dict  (below)
-   • Get file_id: send PDF to bot → forward to @getidsbot → copy file_id
-   • Each entry: {"file_id": "BQACAgI...", "caption": "Unit 1 – Topic"}
-   • For subjects with only a Drive folder → add to NOTES_DRIVE dict
+📦 ALL FILES (notes, books, videos) now use the CHANNEL STORAGE method.
+   This means every file goes through your private Storage Channel.
+   The bot uses copy_message() — instant delivery, zero re-upload, up to 2 GB.
 
-🎬 ADD LECTURE VIDEOS (large, >50 MB) — CHANNEL STORAGE METHOD
-   • Upload the video to your PRIVATE Storage Channel (as a human, not the bot).
-   • Right-click → "Copy Post Link" → https://t.me/c/CHANNEL_ID/MSG_ID
-   • The last number is the msg_id. Set STORAGE_CHANNEL_ID at the top of the file.
-   • Each entry in LECTURE_VIDEOS: {"msg_id": 45, "caption": "Subject – Unit X Lec Y"}
-   • The bot uses copy_message() — instant delivery, zero bandwidth, up to 2 GB.
+📋 HOW TO GET msg_id FOR ANY FILE:
+   1. Upload the file (PDF, video, etc.) to your PRIVATE Storage Channel
+      as a human (not the bot).
+   2. Right-click the posted message → "Copy Post Link"
+      → https://t.me/c/CHANNEL_ID/MSG_ID
+   3. The LAST number is the msg_id.
+   4. Set STORAGE_CHANNEL_ID at the top of this file.
+   5. Paste {"msg_id": <number>, "caption": "..."} into the correct dict below.
+
+📄 ADD NOTES PDFs  →  NOTES_PDF dict  (use msg_id)
+   • Upload PDF to Storage Channel → get msg_id → paste below.
+   • Use 0 as placeholder until uploaded (bot will skip 0 entries).
+
+📚 ADD BOOKS PDFs  →  BOOKS_PDF dict  (use msg_id)
+   • Same method as notes above.
+
+🎬 ADD LECTURE VIDEOS  →  LECTURE_VIDEOS dict  (use msg_id)
+   • Same method — works up to 2 GB per video.
 
 📺 ADD YOUTUBE LINKS  →  YOUTUBE_LINKS dict  (below)
    • Each entry: {"title": "▶️ Playlist Name", "url": "https://..."}
@@ -63,12 +74,6 @@ BOT_TOKEN          = os.environ.get("BOT_TOKEN", "8718988931:AAGjaYFoAeWseNf7LxU
 ADMIN_CHAT_ID      = -1003756311234
 
 # ── Channel Storage — large lecture video hosting (bypasses 50 MB bot limit) ──
-# 1. Create a PRIVATE Telegram channel and add this bot as Admin (Read Messages).
-# 2. Upload lecture videos there manually (up to 2 GB each).
-# 3. Right-click a video → "Copy Post Link" → https://t.me/c/XXXXXXXXXX/YY
-#    • XXXXXXXXXX  → your channel ID  (prepend -100 → e.g. -1001234567890)
-#    • YY          → the message_id for that video
-# 4. Set STORAGE_CHANNEL_ID below and update LECTURE_VIDEOS to use msg_id keys.
 STORAGE_CHANNEL_ID = int(os.environ.get("STORAGE_CHANNEL_ID", "-1003810204452"))
 
 # ── Shared Links ───────────────────────────────────────────────────────────────
@@ -97,16 +102,15 @@ FORCE_JOIN_CHANNELS = [
         "username": "mechanicalmakaut26",
         "url": "https://youtube.com/@mechanicalmakaut26",
         "title": "▶️ YouTube — Mechanical MAKAUT",
-        "verify": False,  # YouTube cannot be verified via Telegram API
+        "verify": False,
     },
 ]
 
 async def check_membership(user_id: int, context) -> list:
-    """Returns list of channels the user has NOT joined."""
     not_joined = []
     for ch in FORCE_JOIN_CHANNELS:
         if not ch.get("verify", True):
-            continue  # e.g. YouTube — cannot verify via Telegram API
+            continue
         try:
             member = await context.bot.get_chat_member(
                 chat_id="@" + ch["username"], user_id=user_id
@@ -117,7 +121,6 @@ async def check_membership(user_id: int, context) -> list:
                 not_joined.append(ch)
         except Exception as e:
             msg = str(e).lower()
-            # Bot lost admin / chat unreachable → fail open so users aren't locked out
             if any(s in msg for s in ("member list is inaccessible",
                                       "chat not found",
                                       "bot is not a member",
@@ -125,12 +128,10 @@ async def check_membership(user_id: int, context) -> list:
                                       "chat_admin_required")):
                 logging.warning("Skipping force-join check for @%s: %s", ch["username"], e)
                 continue
-            # Otherwise (e.g., user-specific lookup error) treat as not joined
             not_joined.append(ch)
     return not_joined
 
 def join_keyboard(not_joined: list):
-    """Keyboard with join buttons + a check button."""
     rows = [[InlineKeyboardButton("➕ Join " + ch["title"], url=ch["url"])]
             for ch in not_joined]
     rows.append([InlineKeyboardButton("✅ I Have Joined — Check Again", callback_data="check_join")])
@@ -139,143 +140,138 @@ def join_keyboard(not_joined: list):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 📂  NOTES PDF  ——  Telegram file_ids, grouped unit-wise where available
+# 📂  NOTES PDF  ——  Channel Storage msg_ids, grouped unit-wise per subject
 # ══════════════════════════════════════════════════════════════════════════════
 NOTES_PDF = {
 
-    # ── Semester 1 ── (paste file_ids when ready)
-    # "ph1":  [{"file_id": "PASTE_HERE", "caption": "Physics I – Notes Part 1"}],
-    # "m1b":  [{"file_id": "PASTE_HERE", "caption": "Mathematics IB – Notes Part 1"}],
-    # "bee1": [{"file_id": "PASTE_HERE", "caption": "Basic Electrical Engineering – Notes Part 1"}],
+    # ── Semester 1 ──
+    "ph1":  [],
+    "m1b":  [],
+    "bee1": [],
 
     # ── Semester 2 ──
     "ch2": [
-        # Unit 1
-        {"file_id": "BQACAgUAAxkBAAFHqL9p5l-d9KWjcxXRRRE_SHKIGxYrsAACuR0AAnAxMVZs_2F_KnvGETsE", "caption": "Chemistry I – Unit 1 Hand Written Notes"},
-        # Unit 2
-        {"file_id": "BQACAgUAAxkBAAFHqMBp5l-dh1CS_90lsabEEh7DQTJlygACuh0AAnAxMVYWzmuJvA2dUTsE", "caption": "Chemistry I – Unit 2 Combined Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqMFp5l-d0LaCM0njaESDBtJG2wSGdQACux0AAnAxMVZY7vgeHnRk6DsE", "caption": "Chemistry I – Unit 2 Hand Written Notes (One Shot)"},
-        # Unit 3
-        {"file_id": "BQACAgUAAxkBAAFHqL1p5l-dhONzctfXtUU_00nHzfQ0IQACtR0AAnAxMVZSpeWeJ5W8LDsE", "caption": "Chemistry I – Unit 3 Combined Notes"},
-        # Unit 4
-        {"file_id": "BQACAgUAAxkBAAFHqLxp5l-dfGdx4PSQUgxzByQVKEvZ-gACrR0AAnAxMVZTL31whIjsVTsE", "caption": "Chemistry I – Unit 4 Hand Written Notes"},
-        # Unit 5
-        {"file_id": "BQACAgUAAxkBAAFHqLtp5l-dcPq4pXGJpO5sbD78BAeslwACqR0AAnAxMVYXixVpZ5NKRjsE", "caption": "Chemistry I – Unit 5 Hand Written Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqL5p5l-dsNGx-_HfeX2OuJSF00oIawACuB0AAnAxMVYAAdzYu_RwVAY7BA", "caption": "Chemistry I – Unit 5 Hand Written Notes (Part 2)"},
+        {"msg_id": 32, "caption": "Chemistry I – Unit 1 Hand Written Notes"},
+        {"msg_id": 33, "caption": "Chemistry I – Unit 2 Combined Notes"},
+        {"msg_id": 34, "caption": "Chemistry I – Unit 2 Hand Written Notes (One Shot)"},
+        {"msg_id": 30, "caption": "Chemistry I – Unit 3 Combined Notes"},
+        {"msg_id": 29, "caption": "Chemistry I – Unit 4 Hand Written Notes"},
+        {"msg_id": 28, "caption": "Chemistry I – Unit 5 Hand Written Notes"},
+        {"msg_id": 31, "caption": "Chemistry I – Unit 5 Hand Written Notes (Part 2)"},
     ],
-    # "m2b": [{"file_id": "PASTE_HERE", "caption": "Mathematics IIB – Notes Part 1"}],
+    "m2b":  [],
     "pps": [
-        # Unit 1
-        {"file_id": "BQACAgUAAxkBAAFHqMdp5l-dNCdwG_kCI2nkF9qPcf270QACSCUAAnAxOVaBHoDdC_lsnTsE", "caption": "Programming for Problem Solving – Unit 1 Hand Written Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqMZp5l-dqL0AASuuvIDRzt9KgYDYbIoAAkclAAJwMTlWiY2cnjIPZ8g7BA", "caption": "Programming for Problem Solving – Unit 1 Combined Notes"},
-        # Unit 2
-        {"file_id": "BQACAgUAAxkBAAFHqMhp5l-dXuvDTqB11Pvi2eyxWEJpigACSSUAAnAxOVb7BHMCp7CIFjsE", "caption": "Programming for Problem Solving – Unit 2 Combined Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqMtp5l-deDGfBMbqzxNcaLTAx7VA4wACTCUAAnAxOVYqOw0K-_62-zsE", "caption": "Programming for Problem Solving – Unit 2 Hand Written Notes"},
-        # Unit 3
-        {"file_id": "BQACAgUAAxkBAAFHqMlp5l-dKEZxS8RKA2S-iuLqMlkR9gACSiUAAnAxOVYi3go5fleUmzsE", "caption": "Programming for Problem Solving – Unit 3 Hand Written Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqMpp5l-ddSVxmVzh4-GaGjnT5PCHIgACSyUAAnAxOVYvOe52pLb7bzsE", "caption": "Programming for Problem Solving – Unit 3 Combined Notes"},
-        # Unit 4
-        {"file_id": "BQACAgUAAxkBAAFHqMVp5l-d3X6JBx4TKcZDMPErif56RgACRiUAAnAxOVahLqJv5fUfATsE", "caption": "Programming for Problem Solving – Unit 4 Hand Written Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqM9p5l-d_RMrnn7VgLu6NB_DkagIuQACUCUAAnAxOVZeGnVp1lvcpzsE", "caption": "Programming for Problem Solving – Unit 4 Combined Notes"},
-        # Unit 5
-        {"file_id": "BQACAgUAAxkBAAFHqNNp5l-d0mrmWOxh0yjBJt-S5z_NBAACVCUAAnAxOVaOJnKbRyeCMzsE", "caption": "Programming for Problem Solving – Unit 5 Combined Notes"},
-        # Important Questions
-        {"file_id": "BQACAgUAAxkBAAFHqMxp5l-dKnEw1DJ7daMGtEtr_BlYzgACTSUAAnAxOVbSAWiCUWXx9DsE", "caption": "Programming for Problem Solving – Most Important Questions"},
+        {"msg_id": 40, "caption": "PPS – Unit 1 Hand Written Notes"},
+        {"msg_id": 41, "caption": "PPS – Unit 1 Combined Notes"},
+        {"msg_id": 42, "caption": "PPS – Unit 2 Combined Notes"},
+        {"msg_id": 43, "caption": "PPS – Unit 2 Hand Written Notes"},
+        {"msg_id": 44, "caption": "PPS – Unit 3 Hand Written Notes"},
+        {"msg_id": 45, "caption": "PPS – Unit 3 Combined Notes"},
+        {"msg_id": 46, "caption": "PPS – Unit 4 Hand Written Notes"},
+        {"msg_id": 49, "caption": "PPS – Unit 4 Combined Notes"},
+        {"msg_id": 54, "caption": "PPS – Unit 5 Combined Notes"},
+        {"msg_id": 286, "caption": "PPS – Most Important Questions"},
+        {"msg_id": 39, "caption": "PPS – Additional Notes"},
     ],
-    # "eng": [{"file_id": "PASTE_HERE", "caption": "English – Notes Part 1"}],
+    "eng":  [],
 
-    # ── Semester 3 ── (paste file_ids when ready)
-    # "m3":   [{"file_id": "PASTE_HERE", "caption": "Mathematics III – Notes Part 1"}],
-    # "bio":  [{"file_id": "PASTE_HERE", "caption": "Biology – Notes Part 1"}],
-    # "ece3": [{"file_id": "PASTE_HERE", "caption": "Basic Electronics – Notes Part 1"}],
-    # "em3":  [{"file_id": "PASTE_HERE", "caption": "Engineering Mechanics – Notes Part 1"}],
-    # "thm3": [{"file_id": "PASTE_HERE", "caption": "Thermodynamics – Notes Part 1"}],
-    # "mfg3": [{"file_id": "PASTE_HERE", "caption": "Manufacturing Processes – Notes Part 1"}],
+    # ── Semester 3 ──
+    "m3":   [],
+    "bio":  [],
+    "ece3": [],
+    "em3":  [],
+    "thm3": [],
+    "mfg3": [],
 
     # ── Semester 4 ──
-    # "mat4": [{"file_id": "PASTE_HERE", "caption": "Materials Engineering – Notes Part 1"}],
-
+    "mat4": [],
     "at4": [
-        # Unit 1
-        {"file_id": "BQACAgUAAxkBAAFHqPxp5l-dQpcuKMCWpi86EN9gjrTVaAACgxoAAoLlSFb7wPkFzGxXYzsE", "caption": "Applied Thermodynamics – Unit 1 IMP Questions"},
-        {"file_id": "BQACAgUAAxkBAAFHqP5p5l-dtDcTLqMp6AZHzOD6tasEgAAChRoAAoLlSFaACfQ1Xe7E8DsE", "caption": "Applied Thermodynamics – Unit 1 Lec 1"},
-        {"file_id": "BQACAgUAAxkBAAFHqP9p5l-dvhKwgGAF6CPkzUp2tsUduAAChhoAAoLlSFZ6htMnCH3w-jsE", "caption": "Applied Thermodynamics – Unit 1 Lec 2"},
-        {"file_id": "BQACAgUAAxkBAAFHqQABaeZfndLjQ6yKijqOnet-0bvituoAAocaAAKC5UhWiQZFhqryqGM7BA", "caption": "Applied Thermodynamics – Unit 1 Lec 3"},
-        {"file_id": "BQACAgUAAxkBAAFHqQFp5l-d4IoFUbnwCm5UBp4zk1JNtwACiBoAAoLlSFZYkI4HldTEyzsE", "caption": "Applied Thermodynamics – Unit 1 Lec 4"},
-        {"file_id": "BQACAgUAAxkBAAFHqQJp5l-dAzAJVKd5Tcy2NM2PFt1BYQACiRoAAoLlSFYDUwulU15z6DsE", "caption": "Applied Thermodynamics – Unit 1 Lec 5"},
-        {"file_id": "BQACAgUAAxkBAAFHqQNp5l-dVK7a4r_AZlRPZ_pnHIaY6QACihoAAoLlSFZ0PoemhG0uAzsE", "caption": "Applied Thermodynamics – Unit 1 Lec 6"},
-        {"file_id": "BQACAgUAAxkBAAFHqQRp5l-dFaQs-btso4bz9ttrO71tnAACixoAAoLlSFYTIUc5oikIojsE", "caption": "Applied Thermodynamics – Unit 1 Turbocharger & Supercharger (One Shot)"},
-        # Unit 2
-        {"file_id": "BQACAgUAAxkBAAFHqP1p5l-dhg_q6LInO4GXwizaud1r4wAChBoAAoLlSFai7zVzHUK40jsE", "caption": "Applied Thermodynamics – Unit 2 Combined Notes"},
-        # Unit 3
-        {"file_id": "BQACAgUAAxkBAAFHqQVp5l-d392eyqYqJsipOXm0xnx_GwACjBoAAoLlSFZGnfLWTJPe1zsE", "caption": "Applied Thermodynamics – Unit 3 Complete Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqQZp5l-dYO-9gdpzRE0aPkEYa6Wy3wACjRoAAoLlSFZem1rjQ60hfjsE", "caption": "Applied Thermodynamics – Unit 3 Boiler Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqQdp5l-dGspXYAl8vFvEgMkPDahDnwACjhoAAoLlSFaah4Jt_E6InjsE", "caption": "Applied Thermodynamics – Unit 3 Boiler Notes Part 1"},
-        {"file_id": "BQACAgUAAxkBAAFHqQhp5l-d-Kk2ilQieY5N-c44D3Q2bAACjxoAAoLlSFZU6WB1XieurzsE", "caption": "Applied Thermodynamics – Unit 3 Boiler Part 2 Draught Notes"},
-        # Unit 4
-        {"file_id": "BQACAgUAAxkBAAFHqQlp5l-dMS85sQwXm-JsEqTlmtDTcgACkBoAAoLlSFbvu3teUxFpAAE7BA", "caption": "Applied Thermodynamics – Unit 4 Notes"},
-        {"file_id": "BQACAgUAAxkBAAFHqQpp5l-dxYuQl3yDeseOlKa7MUbk2QACkRoAAoLlSFYSzRL51MdpEDsE", "caption": "Applied Thermodynamics – Unit 4 Steam Nozzle Numericals"},
-        # Unit 5
-        {"file_id": "BQACAgUAAxkBAAFHqXFp5l_0yVsI2Abhx7rThytIif-KCQACkhoAAoLlSFbMJ3fhXtPeyzsE", "caption": "Applied Thermodynamics – Unit 5 Lec 1"},
-        {"file_id": "BQACAgUAAxkBAAFHqXJp5l_0FhUL2w5uzgQJ5fO93b0hhQACkxoAAoLlSFa-bDB0bi0a5DsE", "caption": "Applied Thermodynamics – Unit 5 Lec 3"},
-        {"file_id": "BQACAgUAAxkBAAFHqXNp5l_0-kObgEUclW-tMWQx19yh3QAClBoAAoLlSFbxN1aOh5zjODsE", "caption": "Applied Thermodynamics – Unit 5 Lec 5"},
-        {"file_id": "BQACAgUAAxkBAAFHqXRp5l_0gtjdC0UPLYjex6yUaVoRBwAClRoAAoLlSFaQ-OxFBT820DsE", "caption": "Applied Thermodynamics – Unit 5 Lec 6"},
-        {"file_id": "BQACAgUAAxkBAAFHqXVp5l_0HZ6072MCGAuSkjWYKdBbPgAClhoAAoLlSFZU4g1oqh9AbTsE", "caption": "Applied Thermodynamics – Unit 5 Lec 7"},
-        {"file_id": "BQACAgUAAxkBAAFHqXZp5l_0IooPYYlWnDlH37jD8bVANwAClxoAAoLlSFZJwdVKfeb00zsE", "caption": "Applied Thermodynamics – Unit 5 Jet Propulsion"},
+        {"msg_id": 104, "caption": "Applied Thermodynamics – Unit 1 IMP Questions"},
+        {"msg_id": 106, "caption": "Applied Thermodynamics – Unit 1 Lec 1"},
+        {"msg_id": 107, "caption": "Applied Thermodynamics – Unit 1 Lec 2"},
+        {"msg_id": 108, "caption": "Applied Thermodynamics – Unit 1 Lec 3"},
+        {"msg_id": 109, "caption": "Applied Thermodynamics – Unit 1 Lec 4"},
+        {"msg_id": 110, "caption": "Applied Thermodynamics – Unit 1 Lec 5"},
+        {"msg_id": 111, "caption": "Applied Thermodynamics – Unit 1 Lec 6"},
+        {"msg_id": 112, "caption": "Applied Thermodynamics – Unit 1 Turbocharger & Supercharger (One Shot)"},
+        {"msg_id": 105, "caption": "Applied Thermodynamics – Unit 2 Combined Notes"},
+        {"msg_id": 113, "caption": "Applied Thermodynamics – Unit 3 Complete Notes"},
+        {"msg_id": 114, "caption": "Applied Thermodynamics – Unit 3 Boiler Notes"},
+        {"msg_id": 115, "caption": "Applied Thermodynamics – Unit 3 Boiler Notes Part 1"},
+        {"msg_id": 116, "caption": "Applied Thermodynamics – Unit 3 Boiler Part 2 Draught Notes"},
+        {"msg_id": 117, "caption": "Applied Thermodynamics – Unit 4 Notes"},
+        {"msg_id": 118, "caption": "Applied Thermodynamics – Unit 4 Steam Nozzle Numericals"},
+        {"msg_id": 119, "caption": "Applied Thermodynamics – Unit 5 Lec 1"},
+        {"msg_id": 120, "caption": "Applied Thermodynamics – Unit 5 Lec 3"},
+        {"msg_id": 121, "caption": "Applied Thermodynamics – Unit 5 Lec 5"},
+        {"msg_id": 122, "caption": "Applied Thermodynamics – Unit 5 Lec 6"},
+        {"msg_id": 123, "caption": "Applied Thermodynamics – Unit 5 Lec 7"},
+        {"msg_id": 124, "caption": "Applied Thermodynamics – Unit 5 Jet Propulsion"},
     ],
-
-    # "fm4": [{"file_id": "PASTE_HERE", "caption": "Fluid Mechanics – Notes Part 1"}],
-
+    "fm4":  [],
     "som4": [
-        {"file_id": "BQACAgUAAxkBAAFHp2hp5k4AAXaPY0fRmr7acERt3okuJcAAArcaAAKC5UhWHnkK27BI_Cg7BA", "caption": "Strength of Materials – Notes Part 1"},
-        {"file_id":"BQACAgUAAxkBAAFHp2lp5k4AAc-ROnl7JTNU6lRFdUzWn4EAAiIbAAKC5UhW5L6hZB9bHCY7BA", "caption": "Strength of Materials – Notes Part 2"},
-        {"file_id": "BQACAgUAAxkBAAFHp2pp5k4AAbXAWmggORZYoNc200HQSyEAAq8bAAKC5UhWngGkwXMHDyk7BA", "caption": "Strength of Materials – Notes Part 3"},
-        {"file_id": "BQACAgUAAxkBAAFHp2tp5k4AAehIV9e2SLokPV3kEue6jbwAArAbAAKC5UhW2_ErOBtGgAc7BA","caption": "Strength of Materials – Notes Part 4"},
-        {"file_id":"BQACAgUAAxkBAAFHp2xp5k4AAaa6LREwO06RP6jeUv6XNzgAArEbAAKC5UhWn9OlAhLtwbk7BA", "caption": "Strength of Materials – Notes Part 5"},
-        {"file_id": "BQACAgUAAxkBAAFHp25p5k4AAVzmhN3x8ZWKBWNO14ylUcMAAlIcAAJn_pBW5UHYtNx3LJQ7BA",  "caption": "Strength of Materials – Notes Part 6"},
-        {"file_id":"BQACAgUAAxkBAAFHp21p5k4AAc2xafrz7R5N-p8O_M867fgAAlEcAAJn_pBWQb0-K4UZoqg7BA","caption": "Strength of Materials – Notes Part 7"},
-        {"file_id": "BQACAgUAAxkBAAFHp29p5k4AAX1EZy0V-Hl1uHC9ezlW6fIAAlMcAAJn_pBW8eXyUZOT2hg7BA", "caption": "Strength of Materials – Notes Part 8"},
-        {"file_id": "BQACAgUAAxkBAAFHp21p5k4AAc2xafrz7R5N-p8O_M867fgAAlEcAAJn_pBWQb0-K4UZoqg7BA","caption": "Strength of Materials – Notes Part 9"},
+        {"msg_id": 135, "caption": "Strength of Materials – Notes Part 1"},
+        {"msg_id": 149, "caption": "Strength of Materials – Notes Part 2"},
+        {"msg_id": 162, "caption": "Strength of Materials – Notes Part 3"},
+        {"msg_id": 163, "caption": "Strength of Materials – Notes Part 4"},
+        {"msg_id": 164, "caption": "Strength of Materials – Notes Part 5"},
+        {"msg_id": 165, "caption": "Strength of Materials – Notes Part 6"},
+        {"msg_id": 168, "caption": "Strength of Materials – Notes Part 7"},
+        {"msg_id": 169, "caption": "Strength of Materials – Notes Part 8"},
+        {"msg_id": 170, "caption": "Strength of Materials – Notes Part 9"},
     ],
+    "met4": [],
 
-    # met4 → Google Drive folder (see NOTES_DRIVE below)
-
-    # ── Semester 5 ── (paste file_ids when ready)
-    # "ht5":  [{"file_id": "PASTE_HERE", "caption": "Heat Transfer – Notes Part 1"}],
-    # "sm5":  [{"file_id": "PASTE_HERE", "caption": "Solid Mechanics – Notes Part 1"}],
-    # "ktm5": [{"file_id": "PASTE_HERE", "caption": "KTM – Notes Part 1"}],
-    # "etc5": [{"file_id": "PASTE_HERE", "caption": "Technical Communication – Notes Part 1"}],
+    # ── Semester 5 ──
+    "ht5":  [],
+    "sm5":  [],
+    "ktm5": [],
+    "etc5": [],
 
     # ── Semester 6 ──
+    "mfgt6": [],
+    "dme6":  [],
+    "or6":   [],
+    "e6a":   [],
     "e6b": [
-        {"file_id": "BQACAgUAAxkBAAFHp0hp5kwjCukXK7Ru1T7K8_UNQA9b1gACDiAAAmf-mFbiblfk-ALBxzsE", "caption": "Refrigeration & Air Conditioning – Notes Part 1"},
-        {"file_id": "BQACAgUAAxkBAAFHp0lp5kwjF3xSqNSlwbI0jIVVKs4WtgACESAAAmf-mFa4LcNW2SijajsE", "caption": "Refrigeration & Air Conditioning – Notes Part 2"},
-        {"file_id": "BQACAgUAAxkBAAFHpzJp5ksPr6-dN53zieJCYxY7n5IP1QACEiAAAmf-mFaTl3UNlpwHQjsE", "caption": "Refrigeration & Air Conditioning – Notes Part 3"},
-        {"file_id":"BQACAgUAAxkBAAFHp0pp5kwjqbtbu0mp5FWmsPQJY3RSUgACEyAAAmf-mFZL0QlMILeAtTsE", "caption": "Refrigeration & Air Conditioning – Notes Part 4"},
+        {"msg_id": 184, "caption": "Refrigeration & Air Conditioning – Notes Part 1"},
+        {"msg_id": 185, "caption": "Refrigeration & Air Conditioning – Notes Part 2"},
+        {"msg_id": 186, "caption": "Refrigeration & Air Conditioning – Notes Part 3"},
+        {"msg_id": 187, "caption": "Refrigeration & Air Conditioning – Notes Part 4"},
     ],
-    # "mfgt6": [{"file_id": "PASTE_HERE", "caption": "Manufacturing Technology – Notes Part 1"}],
-    # "dme6":  [{"file_id": "PASTE_HERE", "caption": "Design of Machine Elements – Notes Part 1"}],
-    # "or6":   [{"file_id": "PASTE_HERE", "caption": "Operations Research – Notes Part 1"}],
-    # "e6a":   [{"file_id": "PASTE_HERE", "caption": "IC Engines & Gas Turbines – Notes Part 1"}],
-    # "e6c":   [{"file_id": "PASTE_HERE", "caption": "Turbo Machinery – Notes Part 1"}],
-    # "e6d":   [{"file_id": "PASTE_HERE", "caption": "Fluid Power Control – Notes Part 1"}],
-    # "e6e":   [{"file_id": "PASTE_HERE", "caption": "Advanced Fluid Mechanics – Notes Part 1"}],
-    # "e6f":   [{"file_id": "PASTE_HERE", "caption": "Composite Materials – Notes Part 1"}],
-    # "e6g":   [{"file_id": "PASTE_HERE", "caption": "Mechatronics – Notes Part 1"}],
-    # "e6h":   [{"file_id": "PASTE_HERE", "caption": "Robotics – Notes Part 1"}],
-    # "e6i":   [{"file_id": "PASTE_HERE", "caption": "Material Handling – Notes Part 1"}],
-    # "e6j":   [{"file_id": "PASTE_HERE", "caption": "Principles of Management – Notes Part 1"}],
+    "e6c":   [],
+    "e6d":   [],
+    "e6e":   [],
+    "e6f":   [],
+    "e6g":   [],
+    "e6h":   [],
+    "e6i":   [],
+    "e6j":   [],
 
-    # ── Semester 7 ── (paste file_ids when ready)
-    # "amt7":  [{"file_id": "PASTE_HERE", "caption": "Adv. Manufacturing Technology – Notes Part 1"}],
-    # "eco7":  [{"file_id": "PASTE_HERE", "caption": "Economics for Engineers – Notes Part 1"}],
-    # "e7a":   [{"file_id": "PASTE_HERE", "caption": "Automobile Engineering – Notes Part 1"}],
-    # "e7f":   [{"file_id": "PASTE_HERE", "caption": "Mechanical Vibration – Notes Part 1"}],
-    # "e7g":   [{"file_id": "PASTE_HERE", "caption": "Finite Element Analysis – Notes Part 1"}],
+    # ── Semester 7 ──
+    "amt7":  [],
+    "eco7":  [],
+    "e7a":   [],
+    "e7b":   [],
+    "e7c":   [],
+    "e7d":   [],
+    "e7e":   [],
+    "e7f":   [],
+    "e7g":   [],
+    "e7h":   [],
+    "e7i":   [],
+    "e7j":   [],
 
-    # ── Semester 8 ── (paste file_ids when ready)
-    # "e8b":   [{"file_id": "PASTE_HERE", "caption": "Power Plant Engineering – Notes Part 1"}],
-    # "e8e":   [{"file_id": "PASTE_HERE", "caption": "Tribology – Notes Part 1"}],
+    # ── Semester 8 ──
+    "e8a":   [],
+    "e8b":   [],
+    "e8c":   [],
+    "e8d":   [],
+    "e8e":   [],
+    "e8f":   [],
+    "e8g":   [],
+    "e8h":   [],
+    "e8i":   [],
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -283,42 +279,58 @@ NOTES_PDF = {
 # ══════════════════════════════════════════════════════════════════════════════
 NOTES_DRIVE = {
     "met4": "https://drive.google.com/drive/folders/1EnmL93MnVJplEmg4CbVG2gds5ZR1MqV9",
-    # "ht5":  "PASTE_DRIVE_LINK_HERE",
-    # "sm5":  "PASTE_DRIVE_LINK_HERE",
-    # "ktm5": "PASTE_DRIVE_LINK_HERE",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 📄  NOTES PDF — CHANNEL STORAGE  (large notes; bypasses 50 MB bot limit)
-#
-#  HOW TO GET msg_id:
-#  Upload PDF to your private Storage Channel → Right-click → Copy Post Link
-#  https://t.me/c/CHANNEL_ID/MSG_ID  ← last number is msg_id
-#  Use 0 as placeholder until uploaded.
 # ══════════════════════════════════════════════════════════════════════════════
 NOTES_PDF_CHANNEL = {
 
     # ── Semester 1 ──
-    "ph1":  [],   # [{"msg_id": 0, "caption": "Physics I – Notes Part 1"}]
-    "m1b":  [],   # [{"msg_id": 0, "caption": "Mathematics IB – Notes Part 1"}]
-    "bee1": [],   # [{"msg_id": 0, "caption": "Basic Electrical Engg – Notes Part 1"}]
+    "ph1":  [],
+    "m1b":  [],
+    "bee1": [],
 
     # ── Semester 2 ──
-    "ch2":  [],   # [{"msg_id": 0, "caption": "Engineering Chemistry – Notes Part 1"}]
-    "m2b":  [],   # [{"msg_id": 0, "caption": "Mathematics IIB – Notes Part 1"}]
-    "pps":  [],   # [{"msg_id": 0, "caption": "PPS – Notes Part 1"}]
-    "eng":  [],   # [{"msg_id": 0, "caption": "English – Notes Part 1"}]
+    "ch2":  [],
+    "m2b": [
+        {"msg_id": 10, "caption": "Mathematics IIB – Notes Part 1"},
+        {"msg_id": 11, "caption": "Mathematics IIB – Notes Part 2"},
+        {"msg_id": 12, "caption": "Mathematics IIB – Notes Part 3"},
+        {"msg_id": 13, "caption": "Mathematics IIB – Notes Part 4"},
+        {"msg_id": 14, "caption": "Mathematics IIB – Notes Part 5"},
+        {"msg_id": 15, "caption": "Mathematics IIB – Notes Part 6"},
+        {"msg_id": 16, "caption": "Mathematics IIB – Notes Part 7"},
+        {"msg_id": 17, "caption": "Mathematics IIB – Notes Part 8"},
+        {"msg_id": 18, "caption": "Mathematics IIB – Notes Part 9"},
+        {"msg_id": 19, "caption": "Mathematics IIB – Notes Part 10"},
+        {"msg_id": 20, "caption": "Mathematics IIB – Notes Part 11"},
+        {"msg_id": 21, "caption": "Mathematics IIB – Notes Part 12"},
+        {"msg_id": 22, "caption": "Mathematics IIB – Notes Part 13"},
+        {"msg_id": 23, "caption": "Mathematics IIB – Notes Part 14"},
+        {"msg_id": 24, "caption": "Mathematics IIB – Notes Part 15"},
+        {"msg_id": 25, "caption": "Mathematics IIB – Notes Part 16"},
+        {"msg_id": 26, "caption": "Mathematics IIB – Notes Part 17"},
+        {"msg_id": 27, "caption": "Mathematics IIB – Notes Part 18"},
+        {"msg_id": 56, "caption": "Mathematics IIB – Notes Part 19"},
+        {"msg_id": 57, "caption": "Mathematics IIB – Notes Part 20"},
+        {"msg_id": 58, "caption": "Mathematics IIB – Notes Part 21"},
+    ],
+    "pps":  [],
+    "eng":  [],
 
     # ── Semester 3 ──
-    "m3":   [],   # [{"msg_id": 0, "caption": "Mathematics III – Notes Part 1"}]
-    "bio":  [],   # [{"msg_id": 0, "caption": "Biology – Notes Part 1"}]
-    "ece3": [],   # [{"msg_id": 0, "caption": "Basic Electronics – Notes Part 1"}]
-    "em3":  [],   # [{"msg_id": 0, "caption": "Engineering Mechanics – Notes Part 1"}]
-    "thm3": [],   # [{"msg_id": 0, "caption": "Thermodynamics – Notes Part 1"}]
-    "mfg3": [],   # [{"msg_id": 0, "caption": "Manufacturing Processes – Notes Part 1"}]
+    "m3":   [],
+    "bio":  [],
+    "ece3": [],
+    "em3":  [],
+    "thm3": [],
+    "mfg3": [],
 
     # ── Semester 4 ──
-    "mat4": [],   # [{"msg_id": 0, "caption": "Materials Engineering – Notes Part 1"}]
+    "mat4": [
+        {"msg_id": 231, "caption": "Materials Engineering – Notes"},
+    ],
     "at4": [
         {"msg_id": 203, "caption": "Applied Thermodynamics – Notes Part 1"},
         {"msg_id": 229, "caption": "Applied Thermodynamics – Notes Part 2"},
@@ -326,75 +338,77 @@ NOTES_PDF_CHANNEL = {
         {"msg_id": 231, "caption": "Applied Thermodynamics – Notes Part 4"},
         {"msg_id": 232, "caption": "Applied Thermodynamics – Notes Part 5"},
     ],
-    "fm4":  [],   # [{"msg_id": 0, "caption": "Fluid Mechanics – Notes Part 1"}]
-    "som4": [],   # [{"msg_id": 0, "caption": "Strength of Materials – Notes Part 1"}]
-    "met4": [],   # [{"msg_id": 0, "caption": "Metrology – Notes Part 1"}]
+    "fm4": [
+        {"msg_id": 230, "caption": "Fluid Mechanics & Fluid Machines – Notes"},
+    ],
+    "som4": [],
+    "met4": [],
 
     # ── Semester 5 ──
-    "ht5":  [],   # [{"msg_id": 0, "caption": "Heat Transfer – Notes Part 1"}]
-    "sm5":  [],   # [{"msg_id": 0, "caption": "Solid Mechanics – Notes Part 1"}]
-    "ktm5": [],   # [{"msg_id": 0, "caption": "KTM – Notes Part 1"}]
-    "etc5": [],   # [{"msg_id": 0, "caption": "Technical Communication – Notes Part 1"}]
+    "ht5":  [],
+    "sm5":  [],
+    "ktm5": [],
+    "etc5": [],
 
     # ── Semester 6 ──
-    "mfgt6": [],  # [{"msg_id": 0, "caption": "Manufacturing Technology – Notes Part 1"}]
-    "dme6":  [],  # [{"msg_id": 0, "caption": "Design of Machine Elements – Notes Part 1"}]
-    "or6":   [],  # [{"msg_id": 0, "caption": "Operations Research – Notes Part 1"}]
-    "e6a":   [],  # [{"msg_id": 0, "caption": "IC Engines & Gas Turbines – Notes Part 1"}]
-    "e6b":   [],  # [{"msg_id": 0, "caption": "Refrigeration & AC – Notes Part 1"}]
-    "e6c":   [],  # [{"msg_id": 0, "caption": "Turbo Machinery – Notes Part 1"}]
-    "e6d":   [],  # [{"msg_id": 0, "caption": "Fluid Power Control – Notes Part 1"}]
-    "e6e":   [],  # [{"msg_id": 0, "caption": "Advanced Fluid Mechanics – Notes Part 1"}]
-    "e6f":   [],  # [{"msg_id": 0, "caption": "Composite Materials – Notes Part 1"}]
-    "e6g":   [],  # [{"msg_id": 0, "caption": "Mechatronics – Notes Part 1"}]
-    "e6h":   [],  # [{"msg_id": 0, "caption": "Robotics – Notes Part 1"}]
-    "e6i":   [],  # [{"msg_id": 0, "caption": "Material Handling – Notes Part 1"}]
-    "e6j":   [],  # [{"msg_id": 0, "caption": "Principles of Management – Notes Part 1"}]
+    "mfgt6": [
+        {"msg_id": 298, "caption": "Manufacturing Technology – Notes Part 1"},
+        {"msg_id": 297, "caption": "Manufacturing Technology – Notes Part 2"},
+        {"msg_id": 296, "caption": "Manufacturing Technology – Notes Part 3"},
+        {"msg_id": 295, "caption": "Manufacturing Technology – Notes Part 4"},
+        {"msg_id": 299, "caption": "Manufacturing Technology – Notes Part 5"},
+        {"msg_id": 300, "caption": "Manufacturing Technology – Notes Part 6"},
+    ],
+    "dme6": [
+        {"msg_id": 232, "caption": "Design of Machine Elements – Notes Part 1"},
+        {"msg_id": 239, "caption": "Design of Machine Elements – Notes Part 2"},
+    ],
+    "or6":   [],
+    "e6a":   [],
+    "e6b":   [],
+    "e6c":   [],
+    "e6d":   [],
+    "e6e":   [],
+    "e6f":   [],
+    "e6g":   [],
+    "e6h":   [],
+    "e6i":   [],
+    "e6j":   [],
 
     # ── Semester 7 ──
-    "amt7":  [],  # [{"msg_id": 0, "caption": "Adv. Manufacturing Technology – Notes Part 1"}]
-    "eco7":  [],  # [{"msg_id": 0, "caption": "Economics for Engineers – Notes Part 1"}]
-    "e7a":   [],  # [{"msg_id": 0, "caption": "Automobile Engineering – Notes Part 1"}]
-    "e7b":   [],  # [{"msg_id": 0, "caption": "E7b – Notes Part 1"}]
-    "e7c":   [],  # [{"msg_id": 0, "caption": "E7c – Notes Part 1"}]
-    "e7d":   [],  # [{"msg_id": 0, "caption": "E7d – Notes Part 1"}]
-    "e7e":   [],  # [{"msg_id": 0, "caption": "E7e – Notes Part 1"}]
-    "e7f":   [],  # [{"msg_id": 0, "caption": "Mechanical Vibration – Notes Part 1"}]
-    "e7g":   [],  # [{"msg_id": 0, "caption": "Finite Element Analysis – Notes Part 1"}]
-    "e7h":   [],  # [{"msg_id": 0, "caption": "E7h – Notes Part 1"}]
-    "e7i":   [],  # [{"msg_id": 0, "caption": "E7i – Notes Part 1"}]
-    "e7j":   [],  # [{"msg_id": 0, "caption": "E7j – Notes Part 1"}]
+    "amt7":  [],
+    "eco7":  [],
+    "e7a":   [],
+    "e7b":   [],
+    "e7c":   [],
+    "e7d":   [],
+    "e7e":   [],
+    "e7f":   [],
+    "e7g":   [],
+    "e7h":   [],
+    "e7i":   [],
+    "e7j":   [],
 
     # ── Semester 8 ──
-    "e8a":   [],  # [{"msg_id": 0, "caption": "E8a – Notes Part 1"}]
-    "e8b":   [],  # [{"msg_id": 0, "caption": "Power Plant Engineering – Notes Part 1"}]
-    "e8c":   [],  # [{"msg_id": 0, "caption": "E8c – Notes Part 1"}]
-    "e8d":   [],  # [{"msg_id": 0, "caption": "E8d – Notes Part 1"}]
-    "e8e":   [],  # [{"msg_id": 0, "caption": "Tribology – Notes Part 1"}]
-    "e8f":   [],  # [{"msg_id": 0, "caption": "E8f – Notes Part 1"}]
-    "e8g":   [],  # [{"msg_id": 0, "caption": "E8g – Notes Part 1"}]
-    "e8h":   [],  # [{"msg_id": 0, "caption": "E8h – Notes Part 1"}]
-    "e8i":   [],  # [{"msg_id": 0, "caption": "E8i – Notes Part 1"}]
+    "e8a":   [],
+    "e8b":   [],
+    "e8c":   [],
+    "e8d":   [],
+    "e8e":   [],
+    "e8f":   [],
+    "e8g":   [],
+    "e8h": [
+        {"msg_id": 236, "caption": "Process Planning & Cost Estimation – Notes"},
+    ],
+    "e8i":   [],
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 📹  LECTURE VIDEOS  ——  Channel Storage method (bypasses 50 MB bot limit)
-#
-#  HOW TO GET THE msg_id:
-#  1. Upload video to your private Storage Channel (using your personal account).
-#  2. Right-click the posted video → "Copy Post Link".
-#     Link format: https://t.me/c/1234567890/45
-#     The LAST number (45) is the msg_id.
-#  3. Add an entry below:  {"msg_id": 45, "caption": "Subject – Unit X Lecture Y"}
-#  4. Make sure STORAGE_CHANNEL_ID at the top matches your channel.
-#
-#  The bot uses copy_message() — no re-upload, instant delivery, supports 2 GB.
 # ══════════════════════════════════════════════════════════════════════════════
 LECTURE_VIDEOS = {
 
     # ── Semester 4 ──
-    # HOW TO FILL: Upload each video to your Storage Channel, get Post Link,
-    # extract the last number = msg_id. Replace 0 with real msg_id values.
     "at4": [
         # Unit 2 (7 videos)
         {"msg_id": 195, "caption": "Applied Thermodynamics – Unit 2 Lecture 1"},
@@ -435,141 +449,62 @@ LECTURE_VIDEOS = {
         {"msg_id": 102, "caption": "Applied Thermodynamics – Unit 4&5 Lecture 17"},
     ],
 
-    # ── Semester 5 ── (paste video file_ids when ready)
-    # "ht5":  [{"file_id": "PASTE_HERE", "caption": "Heat Transfer – Unit X Lecture Y"}],
-    # "ktm5": [{"file_id": "PASTE_HERE", "caption": "KTM – Unit X Lecture Y"}],
+    "som4": [
+        # Unit 1 (6 videos)
+        {"msg_id": 127, "caption": "Strength of Materials – Unit 1 Lecture 1"},
+        {"msg_id": 128, "caption": "Strength of Materials – Unit 1 Lecture 2"},
+        {"msg_id": 129, "caption": "Strength of Materials – Unit 1 Lecture 3"},
+        {"msg_id": 130, "caption": "Strength of Materials – Unit 1 Lecture 4"},
+        {"msg_id": 131, "caption": "Strength of Materials – Unit 1 Lecture 5"},
+        {"msg_id": 132, "caption": "Strength of Materials – Unit 1 Lecture 6"},
+        # Unit 2 (10 videos)
+        {"msg_id": 139, "caption": "Strength of Materials – Unit 2 Lecture 1"},
+        {"msg_id": 140, "caption": "Strength of Materials – Unit 2 Lecture 2"},
+        {"msg_id": 141, "caption": "Strength of Materials – Unit 2 Lecture 3"},
+        {"msg_id": 142, "caption": "Strength of Materials – Unit 2 Lecture 4"},
+        {"msg_id": 143, "caption": "Strength of Materials – Unit 2 Lecture 5"},
+        {"msg_id": 144, "caption": "Strength of Materials – Unit 2 Lecture 6"},
+        {"msg_id": 145, "caption": "Strength of Materials – Unit 2 Lecture 7"},
+        {"msg_id": 146, "caption": "Strength of Materials – Unit 2 Lecture 8"},
+        {"msg_id": 147, "caption": "Strength of Materials – Unit 2 Lecture 9"},
+        {"msg_id": 148, "caption": "Strength of Materials – Unit 2 Lecture 10"},
+        # Unit 3 (11 videos)
+        {"msg_id": 151, "caption": "Strength of Materials – Unit 3 Lecture 1"},
+        {"msg_id": 152, "caption": "Strength of Materials – Unit 3 Lecture 2"},
+        {"msg_id": 153, "caption": "Strength of Materials – Unit 3 Lecture 3"},
+        {"msg_id": 154, "caption": "Strength of Materials – Unit 3 Lecture 4"},
+        {"msg_id": 155, "caption": "Strength of Materials – Unit 3 Lecture 5"},
+        {"msg_id": 156, "caption": "Strength of Materials – Unit 3 Lecture 6"},
+        {"msg_id": 157, "caption": "Strength of Materials – Unit 3 Lecture 7"},
+        {"msg_id": 158, "caption": "Strength of Materials – Unit 3 Lecture 8"},
+        {"msg_id": 159, "caption": "Strength of Materials – Unit 3 Lecture 9"},
+        {"msg_id": 160, "caption": "Strength of Materials – Unit 3 Lecture 10"},
+        {"msg_id": 161, "caption": "Strength of Materials – Unit 3 Lecture 11"},
+    ],
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 📚  BOOKS PDF  ——  Telegram file_ids for reference book PDFs per subject
+# 📚  BOOKS PDF  ——  Channel Storage msg_ids for reference book PDFs per subject
 # ══════════════════════════════════════════════════════════════════════════════
 BOOKS_PDF = {
-
-    # ── Semester 3 ──
-    "em3": [
-        {"file_id": "BQACAgUAAxkBAAFHtgABaedMGwclAvuU4Z9XPUoUAZ0M_YQAAlECAAJ-i4lUDDAUUp8fs7A7BA", "caption": "Engineering Mechanics – RS Khurmi"},
-        {"file_id": "BQACAgUAAxkBAAFHtdxp50uMCZMuNaC2oM0e8flI3EFNxgACSgEAAgHlKFUiKbKROVh00TsE", "caption": "Engineering Mechanics – KL Kumar"},
-        {"file_id": "BQACAgUAAxkBAAFHtd9p50uMpfOr0EiW2TwguGCgkZdixwACUgEAAgHlKFUW_K3-l9pXXDsE", "caption": "Engineering Mechanics – RK Bansal"},
-    ],
-    "thm3": [
-        {"file_id": "BQACAgUAAxkBAAFHtcdp50svY334cF5Y8sTAPZwk3AjzDwACvAMAAlwI-FavpURYczx7XzsE", "caption": "Engineering Thermodynamics – PK Nag (5th Ed.)"},
-        {"file_id": "BQACAgUAAxkBAAFHtchp50svMfllwqL5akC8niTv0Ykd_gAC4woAAlJPyVTUtrL2aUYd3zsE", "caption": "Engineering Thermodynamics – PK Nag Solutions"},
-        {"file_id": "BQACAgUAAxkBAAFHthRp50yMGigi03lEjRtRNXcSn7rzxwACkgIAAn6LiVTslfXepikcpzsE", "caption": "Engineering Thermodynamics – RK Rajput"},
-    ],
-    "mfg3": [
-        {"file_id": "BQACAgUAAxkBAAFHteBp50uMaomdb2gnxjOAqprEQXF4CwACVAEAAgHlKFVJ1kisxYgDKDsE", "caption": "Manufacturing Technology – PN Rao (Vol. 1)"},
-        {"file_id": "BQACAgUAAxkBAAFHteFp50uMzVZuuF3bCydN7T9y_Z4YMwACVgEAAgHlKFV7IeADTiD3ATsE", "caption": "Manufacturing Technology – PN Rao (Vol. 2)"},
-        {"file_id": "BQACAgUAAxkBAAFHteNp50uMJgVSgVgzebeno7P2hwbtowACKQEAAiU9MVUvTMZbAAFhmoY7BA", "caption": "Manufacturing Science – Ghosh & Malik"},
-        {"file_id": "BQACAgUAAxkBAAFHteVp50uMJ1B4GB8cfJcG0i58BkesVAAC5AEAAllK-FbDa0GmYhLl7jsE", "caption": "Fundamentals of Modern Manufacturing – Groover"},
-    ],
-
-    # ── Semester 4 ──
-    "mat4": [
-        {"file_id": "BQACAgUAAxkBAAFHtf1p50wbnPe1Nm34q5DudUb_obbBmAACgAIAAmMbIFW0Pb-MYPPDXjsE", "caption": "Materials Science – RS Khurmi"},
-    ],
-    "at4": [
-        {"file_id": "BQACAgUAAxkBAAFHtcdp50svY334cF5Y8sTAPZwk3AjzDwACvAMAAlwI-FavpURYczx7XzsE", "caption": "Engineering Thermodynamics – PK Nag (5th Ed.)"},
-        {"file_id": "BQACAgUAAxkBAAFHtchp50svMfllwqL5akC8niTv0Ykd_gAC4woAAlJPyVTUtrL2aUYd3zsE", "caption": "Engineering Thermodynamics – PK Nag Solutions"},
-    ],
-    "fm4": [
-        {"file_id": "BQACAgUAAxkBAAFHtfxp50wb-E0hXg4yFa_DHqJ6-rZDqgACvAIAAngCaFVPhBMLy_1FqDsE", "caption": "Fluid Mechanics – RS Khurmi (19th Ed.)"},
-        {"file_id": "BQACAgUAAxkBAAFHtdpp50uMVX5fmkCeB5rx66rAMxhBRAACRwEAAgHlKFWLGuvIx7531TsE", "caption": "Fluid Mechanics – RK Bansal"},
-        {"file_id": "BQACAgUAAxkBAAFHthBp50yMtS1u0Vx8P78hhRJi4YDwnAACjAIAAn6LiVQPsrieCKJ3FzsE", "caption": "Fluid Mechanics & Hydraulic Machines – RK Rajput (5th Ed.)"},
-        {"file_id": "BQACAgIAAxkBAAFHthVp50yM43sSQ8ma4-regdA4Ccr3yAACMwQAAreJoUq4WFHJNcomwjsE", "caption": "Fluid Mechanics (Advanced) – Rajput & Tabatabaian"},
-    ],
-    "som4": [
-        {"file_id": "BQACAgUAAxkBAAFHtf5p50wbvrFkYHUmn9Dvsk6M90yB3AACZwIAAn6LiVRB_blMMnxm8jsE", "caption": "Strength of Materials – RS Khurmi"},
-        {"file_id": "BQACAgUAAxkBAAFHtd5p50uMpAL333J-G_eZ1irTub7t5wACUAEAAgHlKFV60vxYm_M0dzsE", "caption": "Mechanics of Materials – BC Punmia"},
-        {"file_id": "BQACAgUAAxkBAAFHthtp50yMPwABT-t7xEkCCqNI4eDfJy8AAr8KAAKCLrFX_-yVHI3XGqs7BA", "caption": "Strength of Materials – RK Rajput"},
-    ],
-    "met4": [
-        {"file_id": "BQACAgUAAxkBAAFHthlp50yMHWrMdz88zLXM8cBm8EshpAAC1goAAoIusVdoj-lE73Xm7TsE", "caption": "Mechanical Measurements & Instrumentation – RK Rajput"},
-    ],
-
-    # ── Semester 5 ──
-    "ht5": [
-        {"file_id": "BQACAgUAAxkBAAFHtdhp50uMrck7v7z_q_CiYP8xDNq4LQACNgEAAgHlKFWf1yyjj6YBhTsE", "caption": "Heat Transfer – SK Som"},
-        {"file_id": "BQACAgUAAxkBAAFHthZp50yMBueggV3eczeyYV7cjcHYMwACnQIAAn6LiVQ7hE8HlxPuDTsE", "caption": "Heat & Mass Transfer – RK Rajput (5th Ed.)"},
-    ],
-    "ktm5": [
-        {"file_id": "BQACAgUAAxkBAAFHtf9p50wbvrW10OiuxjXz5ZVdZuJLiAACewIAAgH8kFRqpU_hnBSXJzsE", "caption": "Theory of Machines – RS Khurmi"},
-        {"file_id": "BQACAgUAAxkBAAFHtdlp50uMX8ykMuCX8oYPFGp6VESdXwACNwEAAgHlKFVXCLwZjG2lPjsE", "caption": "Theory of Machines – SS Ratan"},
-    ],
-
-    # ── Semester 6 ──
-    "mfgt6": [
-        {"file_id": "BQACAgUAAxkBAAFHteBp50uMaomdb2gnxjOAqprEQXF4CwACVAEAAgHlKFVJ1kisxYgDKDsE", "caption": "Manufacturing Technology – PN Rao (Vol. 1)"},
-        {"file_id": "BQACAgUAAxkBAAFHteFp50uMzVZuuF3bCydN7T9y_Z4YMwACVgEAAgHlKFV7IeADTiD3ATsE", "caption": "Manufacturing Technology – PN Rao (Vol. 2)"},
-        {"file_id": "BQACAgUAAxkBAAFHthdp50yMLhamL0nB8bWCwni2Dw4NMQACAQQAAhYJmFUwwc4N_XCoAAE7BA", "caption": "Manufacturing Technology – RK Rajput"},
-        {"file_id": "BQACAgUAAxkBAAFHteNp50uMJgVSgVgzebeno7P2hwbtowACKQEAAiU9MVUvTMZbAAFhmoY7BA", "caption": "Manufacturing Science – Ghosh & Malik"},
-    ],
-    "dme6": [
-        {"file_id": "BQACAgUAAxkBAAFHtc1p50svwM9udb1nuhOan1nXRq0BEgACZQsAAr7iGFff6l-y-8w8fjsE", "caption": "Design of Machine Elements – VB Bhandari"},
-        {"file_id": "BQACAgUAAxkBAAFHtgJp50wb7lzA_Uc7eIvQuKluXsCntgACbgIAAgH8kFSfGz-uPxKUwTsE", "caption": "Machine Design – RS Khurmi & JK Gupta"},
-    ],
-    "or6": [
-        {"file_id": "BQACAgUAAxkBAAFHtcxp50svrluHWPPR0i7cLS4TleTxngACawwAAmWvKFYWbESqCD0WLDsE", "caption": "Operations Research – Hillier & Lieberman (7th Ed.)"},
-    ],
-    "e6a": [
-        {"file_id": "BQACAgUAAxkBAAFHtclp50svBrgihve7stzBojb71T6TswAC5AwAAstgEFZU9RB8c259VTsE", "caption": "Refrigeration & Air Conditioning – CP Arora (3rd Ed.)"},
-        {"file_id": "BQACAgUAAxkBAAFHtctp50svIVEloqsF-SDSZm80lLzqSQACXAwAAmWvKFblM_MpGeS14jsE", "caption": "Gas Turbines – V. Ganesan"},
-        {"file_id": "BQACAgUAAxkBAAFHthNp50yMQ5iXSxynh6qHqRShPArCgwAC9gIAApkaMVe0cqcKKQ_X0DsE", "caption": "IC Engines – RK Rajput"},
-    ],
-    "e6b": [
-        {"file_id": "BQACAgUAAxkBAAFHtclp50svBrgihve7stzBojb71T6TswAC5AwAAstgEFZU9RB8c259VTsE", "caption": "Refrigeration & Air Conditioning – CP Arora (3rd Ed.)"},
-        {"file_id": "BQACAgUAAxkBAAFHtdtp50uM3RuNxAXeRaGma8YFiWaH4gACSAEAAgHlKFWG1eZOfEq_nTsE", "caption": "Refrigeration & Air Conditioning – CP Arora (Compact)"},
-        {"file_id": "BQACAgUAAxkBAAFHtgFp50wbL49-f5KWsPpsrrGMySqm4QACUwIAAgH8kFQQqV9IpLeG6jsE", "caption": "Refrigeration & Air Conditioning – RS Khurmi"},
-        {"file_id": "BQACAgUAAxkBAAFHthpp50yMnKRZKV4IxcBO1P0iUkGcgwACyAoAAoIusVc-AuuAcCxBaTsE", "caption": "Refrigeration & Air Conditioning – RK Rajput"},
-    ],
-    "e6g": [
-        {"file_id": "BQACAgUAAxkBAAFHthFp50yMipjufIg4-1f99Nn3XyrgngACmAMAAgH8mFSZGSJ2x8IOvDsE", "caption": "Mechatronics – RK Rajput"},
-    ],
-    "e6h": [
-        {"file_id": "BQACAgUAAxkBAAFHteZp50uMFRW5Rl4o8xemd1mg37MZaAACuAIAAjbxqVQpC46e1uppPjsE", "caption": "Robotics – Mihelj et al. (2019)"},
-        {"file_id": "BQACAgUAAxkBAAFHtedp50uMUHiyDsFfb_jklm6PY8dXzAAChAIAAv6KwVSG6GgMnXaP3TsE", "caption": "Introduction to Robotics – John Craig"},
-    ],
-
-    # ── Semester 7 ──
-    "e7f": [
-        {"file_id": "BQACAgUAAxkBAAFHteJp50uM7H-SPdMP9KYb3olJaawZ5gACMwEAAtGDuFcUIs6NTHDV1TsE", "caption": "Mechanical Vibrations – W.T. Thomson"},
-    ],
-    "oe7a": [
-        {"file_id": "BQACAgUAAxkBAAFHteRp50uMnJn7pmrqdzFXTUSy187NLAAC4gEAAllK-FbiwpDIVr1uyDsE", "caption": "Industrial Engineering & Management – OP Khanna"},
-    ],
-    "oe7d": [
-        {"file_id": "BQACAgUAAxkBAAFHthhp50yMtlllL17C6U7UClrYqtxsvgACywoAAoIusVdu1P_Gz1JScjsE", "caption": "Non-Conventional Energy Sources – RK Rajput"},
-    ],
-
-    # ── Semester 8 ──
-    "e8b": [
-        {"file_id": "BQACAgUAAxkBAAFHthJp50yMLfQ6eYVxFL9KsVhT6A4wmwACQgIAAgH8kFTie2EiwiWQmjsE", "caption": "Power Plant Engineering – RK Rajput"},
-        {"file_id": "BQACAgUAAxkBAAFHtd1p50uMZ1grj6YF_pYjAZ_BgnuatgACSwEAAgHlKFUWITgnLUyuKDsE", "caption": "Power Plant Engineering – PK Nag"},
-    ],
-    "e8h": [
-        {"file_id": "BQACAgUAAxkBAAFHtmJp51A5HmtlfXpGnpUHFklqtBjMVAACax0AAqCQQFebwDZdgvUarTsE", "caption": "Process Planning & Cost Estimation – Reference Notes"},
-    ],
-    "oe8d": [
-        {"file_id": "BQACAgUAAxkBAAFHtmRp51A5j_uIBOZ7Zx09JS0HdOcGdgACbR0AAqCQQFcT6yAkNuFO-zsE", "caption": "Industrial Pollution & Control – Notes (Part 1)"},
-        {"file_id": "BQACAgUAAxkBAAFHtmVp51A5FkdSiNSL3kVsMKCtkZN-vwACbh0AAqCQQFe8BElOtHahETsE", "caption": "Industrial Pollution & Control – Notes (Part 2)"},
-    ],
-    "oe8f": [
-        {"file_id": "BQACAgUAAxkBAAFHtmNp51A5BUA4-XSKKaSLgKOmxUXsigACbB0AAqCQQFeT5va-bkfiyDsE", "caption": "Waste to Energy – Notes"},
-    ],
+    # legacy structure, left empty; all real msg_ids go to BOOKS_PDF_CHANNEL
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 📚  BOOKS PDF — CHANNEL STORAGE  (large books; bypasses 50 MB bot limit)
-#
-#  Same channel storage method as LECTURE_VIDEOS.
-#  Use 0 as placeholder until uploaded. Sequential order matches BOOKS_PDF above.
 # ══════════════════════════════════════════════════════════════════════════════
 BOOKS_PDF_CHANNEL = {
+
+    # ── Semester 2 ──
+    "ch2": [
+        {"msg_id": 166, "caption": "Engineering Chemistry – Reference Book"},
+    ],
 
     # ── Semester 3 ──
     "em3": [
         {"msg_id": 175, "caption": "Engineering Mechanics – RS Khurmi"},
         {"msg_id": 176, "caption": "Engineering Mechanics – KL Kumar"},
-        {"msg_id": 178, "caption": "Engineering Mechanics – RK Bansal"},          # 177 unused
+        {"msg_id": 178, "caption": "Engineering Mechanics – RK Bansal"},
     ],
     "thm3": [
         {"msg_id": 179, "caption": "Engineering Thermodynamics – PK Nag (5th Ed.)"},
@@ -578,35 +513,47 @@ BOOKS_PDF_CHANNEL = {
     ],
     "mfg3": [
         {"msg_id": 182, "caption": "Manufacturing Technology – PN Rao (Vol. 1)"},
-        {"msg_id": 204, "caption": "Manufacturing Technology – PN Rao (Vol. 2)"},  # gap 183-203 = other content
+        {"msg_id": 204, "caption": "Manufacturing Technology – PN Rao (Vol. 2)"},
         {"msg_id": 205, "caption": "Manufacturing Science – Ghosh & Malik"},
         {"msg_id": 206, "caption": "Fundamentals of Modern Manufacturing – Groover"},
     ],
-    "bio":  [],   # [{"msg_id": 0, "caption": "Biology – Reference Book"}]
-    "ece3": [],   # [{"msg_id": 0, "caption": "Basic Electronics – Reference Book"}]
-    "m3":   [],   # [{"msg_id": 0, "caption": "Mathematics III – Reference Book"}]
+    "bio":  [],
+    "ece3": [],
+    "m3":   [],
 
     # ── Semester 4 ──
     "mat4": [
         {"msg_id": 207, "caption": "Materials Science – RS Khurmi"},
+        {"msg_id": 244, "caption": "Materials Engineering – Additional Book"},
     ],
     "at4": [
         {"msg_id": 208, "caption": "Engineering Thermodynamics – PK Nag (5th Ed.)"},
         {"msg_id": 209, "caption": "Engineering Thermodynamics – PK Nag Solutions"},
+        {"msg_id": 240, "caption": "Applied Thermodynamics – Reference Book 1"},
+        {"msg_id": 255, "caption": "Applied Thermodynamics – Reference Book 2"},
     ],
     "fm4": [
         {"msg_id": 210, "caption": "Fluid Mechanics – RS Khurmi (19th Ed.)"},
         {"msg_id": 211, "caption": "Fluid Mechanics – RK Bansal"},
         {"msg_id": 212, "caption": "Fluid Mechanics & Hydraulic Machines – RK Rajput (5th Ed.)"},
-        {"msg_id": 214, "caption": "Fluid Mechanics (Advanced) – Rajput & Tabatabaian"},  # 213 unused
+        {"msg_id": 214, "caption": "Fluid Mechanics (Advanced) – Rajput & Tabatabaian"},
+        {"msg_id": 243, "caption": "Fluid Mechanics – Additional Book 1"},
+        {"msg_id": 250, "caption": "Fluid Mechanics – Additional Book 2"},
+        {"msg_id": 267, "caption": "Fluid Mechanics – Additional Book 3"},
     ],
     "som4": [
         {"msg_id": 215, "caption": "Strength of Materials – RS Khurmi"},
         {"msg_id": 216, "caption": "Mechanics of Materials – BC Punmia"},
         {"msg_id": 217, "caption": "Strength of Materials – RK Rajput"},
+        {"msg_id": 229, "caption": "Strength of Materials – Book 4"},
+        {"msg_id": 234, "caption": "Strength of Materials – Book 5"},
+        {"msg_id": 245, "caption": "Strength of Materials – Book 6"},
+        {"msg_id": 261, "caption": "Strength of Materials – Book 7"},
+        {"msg_id": 268, "caption": "Strength of Materials – Book 8"},
     ],
     "met4": [
         {"msg_id": 218, "caption": "Mechanical Measurements & Instrumentation – RK Rajput"},
+        {"msg_id": 259, "caption": "Metrology & Instrumentation – Reference Book"},
     ],
 
     # ── Semester 5 ──
@@ -618,8 +565,8 @@ BOOKS_PDF_CHANNEL = {
         {"msg_id": 221, "caption": "Theory of Machines – RS Khurmi"},
         {"msg_id": 222, "caption": "Theory of Machines – SS Ratan"},
     ],
-    "sm5":  [],   # [{"msg_id": 0, "caption": "Solid Mechanics – Reference Book"}]
-    "etc5": [],   # [{"msg_id": 0, "caption": "Technical Communication – Reference Book"}]
+    "sm5":  [],
+    "etc5": [],
 
     # ── Semester 6 ──
     "mfgt6": [
@@ -627,48 +574,58 @@ BOOKS_PDF_CHANNEL = {
         {"msg_id": 224, "caption": "Manufacturing Technology – PN Rao (Vol. 2)"},
         {"msg_id": 225, "caption": "Manufacturing Technology – RK Rajput"},
         {"msg_id": 226, "caption": "Manufacturing Science – Ghosh & Malik"},
+        {"msg_id": 257, "caption": "Manufacturing Technology – Additional Book 1"},
+        {"msg_id": 216, "caption": "Manufacturing Technology – Additional Book 2"},
+        {"msg_id": 203, "caption": "Manufacturing Technology – Additional Book 3"},
     ],
     "dme6": [
         {"msg_id": 227, "caption": "Design of Machine Elements – VB Bhandari"},
         {"msg_id": 228, "caption": "Machine Design – RS Khurmi & JK Gupta"},
+        {"msg_id": 249, "caption": "Design of Machine Elements – Additional Reference"},
     ],
-    "or6":  [],   # [{"msg_id": 0, "caption": "Operations Research – Hillier & Lieberman"}]
-    "e6a":  [],   # [{"msg_id": 0, "caption": "IC Engines & Gas Turbines – Reference Book"}]
-    "e6b":  [],   # [{"msg_id": 0, "caption": "Refrigeration & AC – CP Arora"}]
-    "e6c":  [],   # [{"msg_id": 0, "caption": "Turbo Machinery – Reference Book"}]
-    "e6d":  [],   # [{"msg_id": 0, "caption": "Fluid Power Control – Reference Book"}]
-    "e6e":  [],   # [{"msg_id": 0, "caption": "Advanced Fluid Mechanics – Reference Book"}]
-    "e6f":  [],   # [{"msg_id": 0, "caption": "Composite Materials – Reference Book"}]
-    "e6g":  [],   # [{"msg_id": 0, "caption": "Mechatronics – RK Rajput"}]
-    "e6h":  [],   # [{"msg_id": 0, "caption": "Robotics – Mihelj et al."}]
-    "e6i":  [],   # [{"msg_id": 0, "caption": "Material Handling – Reference Book"}]
-    "e6j":  [],   # [{"msg_id": 0, "caption": "Principles of Management – Reference Book"}]
+    "or6":  [],
+    "e6a": [
+        {"msg_id": 179, "caption": "IC Engines & Gas Turbines – Book 1"},
+        {"msg_id": 180, "caption": "IC Engines & Gas Turbines – Book 2"},
+        {"msg_id": 253, "caption": "IC Engines & Gas Turbines – Book 3"},
+        {"msg_id": 238, "caption": "IC Engines & Gas Turbines – Book 4"},
+    ],
+    "e6b": [
+        {"msg_id": 248, "caption": "Refrigeration & Air Conditioning – Book 1"},
+        {"msg_id": 260, "caption": "Refrigeration & Air Conditioning – Book 2"},
+    ],
+    "e6c":  [],
+    "e6d":  [],
+    "e6e":  [],
+    "e6f":  [],
+    "e6g":  [],
+    "e6h":  [],
+    "e6i":  [],
+    "e6j":  [],
 
     # ── Semester 7 ──
-    "amt7":  [],  # [{"msg_id": 0, "caption": "Adv. Manufacturing Technology – Reference Book"}]
-    "eco7":  [],  # [{"msg_id": 0, "caption": "Economics for Engineers – Reference Book"}]
-    "e7a":   [],  # [{"msg_id": 0, "caption": "Automobile Engineering – Reference Book"}]
-    "e7f":   [],  # [{"msg_id": 0, "caption": "Mechanical Vibrations – W.T. Thomson"}]
-    "e7g":   [],  # [{"msg_id": 0, "caption": "FEA – Reference Book"}]
-    "oe7a":  [],  # [{"msg_id": 0, "caption": "Industrial Engineering – OP Khanna"}]
-    "oe7d":  [],  # [{"msg_id": 0, "caption": "Non-Conventional Energy – RK Rajput"}]
+    "amt7":  [],
+    "eco7":  [],
+    "e7a":   [],
+    "e7f":   [],
+    "e7g":   [],
+    "oe7a":  [],
+    "oe7d":  [],
 
     # ── Semester 8 ──
-    "e8b":   [],  # [{"msg_id": 0, "caption": "Power Plant Engineering – RK Rajput"}]
-    "e8h":   [],  # [{"msg_id": 0, "caption": "Process Planning & Cost Estimation – Reference"}]
-    "oe8d":  [],  # [{"msg_id": 0, "caption": "Industrial Pollution & Control – Reference Book"}]
-    "oe8f":  [],  # [{"msg_id": 0, "caption": "Waste to Energy – Reference Book"}]
+    "e8b": [
+        {"msg_id": 252, "caption": "Power Plant Engineering – RK Rajput"},
+        {"msg_id": 240, "caption": "Power Plant Engineering – PK Nag"},
+    ],
+    "e8h":   [],
+    "oe8d":  [],
+    "oe8f":  [],
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 🎬  YOUTUBE LINKS  ——  Playlists & videos per subject
 # ══════════════════════════════════════════════════════════════════════════════
 YOUTUBE_LINKS = {
-
-    # ── Semester 1 ── (paste links when ready)
-    # "ph1":  [{"title": "▶️ Physics I – Playlist 1", "url": "PASTE_HERE"}],
-    # "m1b":  [{"title": "▶️ Mathematics IB – Playlist 1", "url": "PASTE_HERE"}],
-    # "bee1": [{"title": "▶️ Basic Electrical Engg – Playlist 1", "url": "PASTE_HERE"}],
 
     # ── Semester 2 ──
     "ch2": [
@@ -697,15 +654,6 @@ YOUTUBE_LINKS = {
         {"title": "▶️ PPS – Playlist 2", "url": "https://youtube.com/playlist?list=PL49mRA0Y_C8vQV1h4YVtGUQGu4BQY6hrv&si=5jM3K_hsvUK1NxYL"},
         {"title": "▶️ PPS – Playlist 3", "url": "https://youtube.com/playlist?list=PLkojphh8hBnYb6K3B79ZEhb4AyuvgksFA&si=ukhP0m_Wxn0SI441"},
     ],
-    # "eng": [{"title": "▶️ English – Playlist 1", "url": "PASTE_HERE"}],
-
-    # ── Semester 3 ── (paste links when ready)
-    # "m3":   [{"title": "▶️ Mathematics III – Playlist 1", "url": "PASTE_HERE"}],
-    # "bio":  [{"title": "▶️ Biology – Playlist 1", "url": "PASTE_HERE"}],
-    # "ece3": [{"title": "▶️ Basic Electronics – Playlist 1", "url": "PASTE_HERE"}],
-    # "em3":  [{"title": "▶️ Engineering Mechanics – Playlist 1", "url": "PASTE_HERE"}],
-    # "thm3": [{"title": "▶️ Thermodynamics – Playlist 1", "url": "PASTE_HERE"}],
-    # "mfg3": [{"title": "▶️ Manufacturing Processes – Playlist 1", "url": "PASTE_HERE"}],
 
     # ── Semester 4 ──
     "mat4": [
@@ -713,7 +661,6 @@ YOUTUBE_LINKS = {
         {"title": "▶️ Materials Engineering – Video",      "url": "https://youtu.be/nCBUwiib0Xo"},
         {"title": "▶️ Materials Engineering – Playlist 2", "url": "https://youtube.com/playlist?list=PLWo-ERPOfIbbOV1slvh62wHgcxaB2-mDT"},
     ],
-    # "at4":  [{"title": "▶️ Applied Thermodynamics – Playlist 1", "url": "PASTE_HERE"}],
 
     "fm4": [
         {"title": "▶️ Fluid Mechanics – Playlist 1", "url": "https://youtube.com/playlist?list=PLY8pCdWSlXrTmdn-QOYb71f1LazGmyVT9"},
@@ -738,32 +685,17 @@ YOUTUBE_LINKS = {
         {"title": "▶️ Metrology – Playlist 5",    "url": "https://youtube.com/playlist?list=PLTWGsRaojtPaSXtSsNxNiATHrxlhaBwfa"},
     ],
 
-    # ── Semester 5 ── (paste links when ready)
-    # "ht5":  [{"title": "▶️ Heat Transfer – Playlist 1", "url": "PASTE_HERE"}],
-    # "sm5":  [{"title": "▶️ Solid Mechanics – Playlist 1", "url": "PASTE_HERE"}],
-    # "ktm5": [{"title": "▶️ KTM – Playlist 1", "url": "PASTE_HERE"}],
-    # "etc5": [{"title": "▶️ Technical Communication – Playlist 1", "url": "PASTE_HERE"}],
+    # ── Semester 6 ──
+    "e6a": [
+        {"title": "▶️ IC Engines & Gas Turbines – Playlist 1", "url": "https://youtube.com/playlist?list=PLwdnzlV3ogoXHbVNKWL1BYOo_8PpyNtnC"},
+        {"title": "▶️ IC Engines & Gas Turbines – Playlist 2", "url": "https://youtube.com/playlist?list=PLc8T_CSyq_2CeqWmOQmDN-0eHQHY55k84"},
+        {"title": "▶️ IC Engines & Gas Turbines – Playlist 3", "url": "https://youtube.com/playlist?list=PLEt20WwAo4BjQHKRJPyuy8Wd9uZATpNCg"},
+    ],
 
-    # ── Semester 6 ── (paste links when ready)
-    # "mfgt6": [{"title": "▶️ Manufacturing Technology – Playlist 1", "url": "PASTE_HERE"}],
-    # "dme6":  [{"title": "▶️ Design of Machine Elements – Playlist 1", "url": "PASTE_HERE"}],
-    # "or6":   [{"title": "▶️ Operations Research – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6a":   [{"title": "▶️ IC Engines & Gas Turbines – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6b":   [{"title": "▶️ Refrigeration & AC – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6c":   [{"title": "▶️ Turbo Machinery – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6d":   [{"title": "▶️ Fluid Power Control – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6g":   [{"title": "▶️ Mechatronics – Playlist 1", "url": "PASTE_HERE"}],
-    # "e6h":   [{"title": "▶️ Robotics – Playlist 1", "url": "PASTE_HERE"}],
-
-    # ── Semester 7 ── (paste links when ready)
-    # "amt7":  [{"title": "▶️ Adv. Manufacturing Technology – Playlist 1", "url": "PASTE_HERE"}],
-    # "e7c":   [{"title": "▶️ CFD – Playlist 1", "url": "PASTE_HERE"}],
-    # "e7f":   [{"title": "▶️ Mechanical Vibration – Playlist 1", "url": "PASTE_HERE"}],
-    # "e7g":   [{"title": "▶️ Finite Element Analysis – Playlist 1", "url": "PASTE_HERE"}],
-
-    # ── Semester 8 ── (paste links when ready)
-    # "e8b":  [{"title": "▶️ Power Plant Engineering – Playlist 1", "url": "PASTE_HERE"}],
-    # "e8e":  [{"title": "▶️ Tribology – Playlist 1", "url": "PASTE_HERE"}],
+    "dme6": [
+        {"title": "▶️ Design of Machine Elements – Playlist 1", "url": "https://youtube.com/playlist?list=PLfq4fiRrJSn4lPuuGfL1bj6FvueRlslOt"},
+        {"title": "▶️ Design of Machine Elements – Playlist 2", "url": "https://youtube.com/playlist?list=PLfcoXoGOQYe6ifMj-ntsYXlwnVwugMWPz"},
+    ],
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -865,7 +797,25 @@ MATERIALS = {
             "dme6":  s("Design of Machine Elements", "PC-ME602", "Design of shafts, keys, gears, bearings, springs, clutches, brakes, welded joints."),
             "or6":   s("Operations Research",        "HM-HU601", "LPP, simplex, transportation, assignment, network analysis, CPM/PERT, queueing."),
             "e6a":   s("IC Engines & Gas Turbines  [Elec-I/II-A]",          "PE-ME601A/602A", "SI/CI engine cycles, fuel systems, supercharging, emissions, gas turbine cycles."),
-            "e6b":   s("Refrigeration & Air Conditioning  [Elec-I/II-B]",   "PE-ME601B/602B", "Vapour compression/absorption cycles, psychrometry, cooling load, AC systems."),
+            "e6b":   {
+                "name": "Refrigeration & Air Conditioning  [Elec-I/II-B]",
+                "code": "PE-ME601B/602B",
+                "description": "Vapour compression/absorption cycles, psychrometry, cooling load, AC systems.",
+                "resources": {
+                    "pyq": [
+                        {"title": "📢 PYQs & Practice Qs — Telegram Channel", "url": TG},
+                        {"title": "📂 PYQ — Google Drive", "url": DR38, "description": "Previous year question papers on Drive"},
+                    ],
+                    "books": [
+                        {"title": "📢 Reference Books — Telegram Channel", "url": TG, "description": "Book PDFs shared in the channel"},
+                        {"title": "📗 Refrigeration & Air Conditioning – CP Arora (3rd Ed.)", "url": "https://drive.google.com/file/d/1iK0E6Meo1QUQxjWToSP0XBRh_JQ-wNhd/view?usp=sharing", "description": "Google Drive Book Link"},
+                        {"title": "🚧 Direct Book PDF Links", "url": CS},
+                    ],
+                    "organizers": [
+                        {"title": "📋 Organizer / Handouts — Google Drive", "url": DR38, "description": "Organized study materials & handouts"},
+                    ],
+                },
+            },
             "e6c":   s("Turbo Machinery  [Elec-I/II-C]",                    "PE-ME601C/602C", "Centrifugal & axial flow compressors, turbines, velocity triangles, cavitation."),
             "e6d":   s("Fluid Power Control  [Elec-I/II-D]",                "PE-ME601D/602D", "Hydraulic & pneumatic systems, control valves, actuators, servo systems."),
             "e6e":   s("Advanced Fluid Mechanics  [Elec-I/II-E]",           "PE-ME601E/602E", "Navier-Stokes equations, turbulence, compressible flow, boundary layer theory."),
@@ -993,7 +943,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(WELCOME, parse_mode="Markdown", reply_markup=main_menu_kb())
 
 async def _enforce_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """If the user hasn't joined required channels, reply with the join prompt and return True."""
     user_id = update.effective_user.id
     not_joined = await check_membership(user_id, context)
     if not_joined:
@@ -1122,37 +1071,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not sub:
             await q.edit_message_text("❌ Subject not found."); return
 
-        # ── NOTES: send PDFs directly or show Drive link ───────────────────
+        # ── NOTES: send PDFs from Storage Channel or show Drive link ─────────
         if res_type == "notes":
-            pdfs       = NOTES_PDF.get(sub_id, [])
-            ch_pdfs    = [p for p in NOTES_PDF_CHANNEL.get(sub_id, []) if p.get("msg_id", 0) != 0]
+            all_note_pdfs = (
+                [p for p in NOTES_PDF.get(sub_id, [])         if p.get("msg_id", 0) != 0] +
+                [p for p in NOTES_PDF_CHANNEL.get(sub_id, []) if p.get("msg_id", 0) != 0]
+            )
             drive_link = NOTES_DRIVE.get(sub_id)
 
-            if pdfs or ch_pdfs:
-                total = len(pdfs) + len(ch_pdfs)
+            if all_note_pdfs:
+                total = len(all_note_pdfs)
                 await q.edit_message_text(
                     f"📤 *Sending notes for {sub['name']}…*\n"
                     f"_{total} PDF(s) incoming below_ 👇",
                     parse_mode="Markdown")
                 chat_id = q.message.chat_id
-                # ── file_id PDFs (direct send) ──
-                for idx, pdf in enumerate(pdfs, 1):
-                    caption      = pdf.get("caption", f"{sub['name']} – Part {idx}")
-                    caption_full = f"📄 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
-                    try:
-                        await context.bot.send_document(
-                            chat_id=chat_id,
-                            document=pdf["file_id"],
-                            caption=caption_full,
-                            parse_mode="Markdown")
-                    except Exception as e:
-                        logger.error(f"Failed to send PDF for {sub_id}: {e}")
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=f"⚠️ Could not send *{caption}*. Check channel for this file.",
-                            parse_mode="Markdown")
-                # ── channel storage PDFs (copy_message) ──
-                for idx, pdf in enumerate(ch_pdfs, 1):
+                for idx, pdf in enumerate(all_note_pdfs, 1):
                     caption      = pdf.get("caption", f"{sub['name']} – Notes Part {idx}")
                     caption_full = f"📄 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
                     try:
@@ -1163,7 +1097,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             caption=caption_full,
                             parse_mode="Markdown")
                     except Exception as e:
-                        logger.error(f"Failed to copy channel note for {sub_id} msg_id={pdf.get('msg_id')}: {e}")
+                        logger.error(f"Failed to copy note for {sub_id} msg_id={pdf.get('msg_id')}: {e}")
                         await context.bot.send_message(
                             chat_id=chat_id,
                             text=f"⚠️ Could not send *{caption}*.\n_Ensure the bot is Admin in the Storage Channel._",
@@ -1203,7 +1137,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tg_videos = LECTURE_VIDEOS.get(sub_id, [])
             yt_links  = YOUTUBE_LINKS.get(sub_id, [])
 
-            # Filter out placeholder entries (msg_id == 0 means not yet uploaded)
             tg_videos = [v for v in tg_videos if v.get("msg_id", 0) != 0]
 
             if tg_videos:
@@ -1217,8 +1150,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     caption      = vid.get("caption", f"{sub['name']} – Lecture {idx}")
                     caption_full = f"🎬 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
                     try:
-                        # copy_message pulls the video from the private Storage Channel
-                        # instantly — no re-upload, no bandwidth used, supports up to 2 GB.
                         await context.bot.copy_message(
                             chat_id=chat_id,
                             from_chat_id=STORAGE_CHANNEL_ID,
@@ -1265,35 +1196,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             label  = labels.get(res_type, res_type.title())
             icon   = icons.get(res_type, "🔗")
 
-            # ── For BOOKS: send PDFs first if available ──
             if res_type == "books":
-                book_pdfs = BOOKS_PDF.get(sub_id, [])
-                ch_books  = [b for b in BOOKS_PDF_CHANNEL.get(sub_id, []) if b.get("msg_id", 0) != 0]
-                if book_pdfs or ch_books:
-                    total = len(book_pdfs) + len(ch_books)
+                all_book_pdfs = (
+                    [b for b in BOOKS_PDF.get(sub_id, [])         if b.get("msg_id", 0) != 0] +
+                    [b for b in BOOKS_PDF_CHANNEL.get(sub_id, []) if b.get("msg_id", 0) != 0]
+                )
+                if all_book_pdfs:
+                    total = len(all_book_pdfs)
                     await q.edit_message_text(
                         f"📤 *Sending reference books for {sub['name']}…*\n"
                         f"_{total} book(s) incoming below_ 👇",
                         parse_mode="Markdown")
                     chat_id = q.message.chat_id
-                    # ── file_id books (direct send) ──
-                    for idx, book in enumerate(book_pdfs, 1):
-                        caption      = book.get("caption", f"{sub['name']} – Book {idx}")
-                        caption_full = f"📗 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
-                        try:
-                            await context.bot.send_document(
-                                chat_id=chat_id,
-                                document=book["file_id"],
-                                caption=caption_full,
-                                parse_mode="Markdown")
-                        except Exception as e:
-                            logger.error(f"Failed to send book PDF for {sub_id}: {e}")
-                            await context.bot.send_message(
-                                chat_id=chat_id,
-                                text=f"⚠️ Could not send *{caption}*.",
-                                parse_mode="Markdown")
-                    # ── channel storage books (copy_message) ──
-                    for idx, book in enumerate(ch_books, 1):
+                    for idx, book in enumerate(all_book_pdfs, 1):
                         caption      = book.get("caption", f"{sub['name']} – Book {idx}")
                         caption_full = f"📗 *{caption}*\n_{sub['name']} | {sub.get('code','')}_"
                         try:
@@ -1304,7 +1219,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 caption=caption_full,
                                 parse_mode="Markdown")
                         except Exception as e:
-                            logger.error(f"Failed to copy channel book for {sub_id} msg_id={book.get('msg_id')}: {e}")
+                            logger.error(f"Failed to copy book for {sub_id} msg_id={book.get('msg_id')}: {e}")
                             await context.bot.send_message(
                                 chat_id=chat_id,
                                 text=f"⚠️ Could not send *{caption}*.\n_Ensure the bot is Admin in the Storage Channel._",
@@ -1360,8 +1275,6 @@ async def text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def main():
-    # Start the lightweight HTTP health-check server in a background thread
-    # (required for Render Web Service — without this the deploy fails)
     Thread(target=_start_http, daemon=True).start()
     logger.info(f"🌐 Flask keep-alive server started on port {os.environ.get('PORT', 8080)}")
 
